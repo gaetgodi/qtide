@@ -86,6 +86,7 @@ private:
   std::string getcolsizing();
   std::string getcolwidth(std::string v);
   std::string getsortindicator();
+  std::string getcelltip(std::string v);
   void emithdr(const char *ev, int c);
   void setdata(std::string s);
   void setfontstr(std::string s);

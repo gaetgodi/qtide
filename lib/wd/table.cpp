@@ -213,6 +213,9 @@ std::string Table::get(std::string p,std::string v)
     return getcolsizing();
   } else if (p=="sortindicator") {
     return getsortindicator();
+  } else if (p=="celltip") {
+    rc=-1;
+    return getcelltip(v);
   } else if (p=="table") {
     return(readtable(v));
   } else
@@ -1333,11 +1336,22 @@ void Table::on_stateChanged (int n)
 // All are additive; existing commands are unchanged.
 // See docs/wd-table-extensions.md.
 // ---------------------------------------------------------------------
+// strict integer parse for the r9 commands: optional leading '_' (J negative) or '-', digits only; false otherwise
+static bool jint(const QString &s, int &r)
+{
+  QString t=s;
+  if (t.startsWith('_')) t[0]='-';
+  bool ok=false;
+  r=t.toInt(&ok);
+  return ok;
+}
+
 std::string Table::capabilities()
 {
   return "table.colsizing table.colminwidth table.colwidth.get table.colresize.event "
          "table.headerclick table.hdrclick.event table.sortindicator "
-         "table.celltip table.tooltips table.hover.event table.viewwidth.get";
+         "table.celltip table.tooltips table.hover.event table.viewwidth.get "
+         "table.sortindicator.auto table.celltip.get";
 }
 
 // ---------------------------------------------------------------------
@@ -1401,11 +1415,13 @@ void Table::setcolminwidth(std::string v)
 {
   QTableWidget *w=(QTableWidget*) widget;
   QStringList opt=qsplit(v);
-  if (opt.size()!=1 || c_strtoi(q2s(opt.at(0)))<0) {
+  int mw=0;
+  bool ok= (opt.size()==1) && jint(opt.at(0),mw);
+  if (!ok || mw<0) {
     error("set colminwidth must specify one non-negative width: " + v);
     return;
   }
-  w->horizontalHeader()->setMinimumSectionSize(c_strtoi(q2s(opt.at(0))));
+  w->horizontalHeader()->setMinimumSectionSize(mw);
 }
 
 // ---------------------------------------------------------------------
@@ -1443,7 +1459,8 @@ void Table::setheaderclick(std::string v)
   }
   hdrmode= (opt.at(0)=="off") ? 0 : (opt.at(0)=="event" ? 1 : 2);
   w->horizontalHeader()->setSectionsClickable(hdrmode!=0);
-  w->horizontalHeader()->setSortIndicatorShown(hdrmode!=0 && sortcol>=0);
+  // visibility follows the sort state, not clickability: a disabled (off) header keeps showing the current sort
+  w->horizontalHeader()->setSortIndicatorShown(sortcol>=0);
 }
 
 // ---------------------------------------------------------------------
@@ -1458,12 +1475,17 @@ void Table::setsortindicator(std::string v)
     return;
   }
   QHeaderView *h=w->horizontalHeader();
-  if (opt.at(0)=="none" || c_strtoi(q2s(opt.at(0)))<0) {
+  int c=0;
+  bool okc=jint(opt.at(0),c);
+  if (opt.at(0)=="none" || (okc && c<0)) {
     sortcol=-1;
     h->setSortIndicatorShown(false);
     return;
   }
-  int c=c_strtoi(q2s(opt.at(0)));
+  if (!okc) {
+    error("set sortindicator must specify none or col [asc|desc]: " + v);
+    return;
+  }
   if (c>=cls) {
     error("set sortindicator col index out of bounds: " + v);
     return;
@@ -1490,6 +1512,25 @@ std::string Table::getsortindicator()
   QHeaderView *h=w->horizontalHeader();
   if (!h->isSortIndicatorShown()) return "-1 0";
   return i2s(h->sortIndicatorSection())+" "+i2s(h->sortIndicatorOrder()==Qt::DescendingOrder);
+}
+
+// ---------------------------------------------------------------------
+// get celltip r c  -> the tooltip text of that cell ('' when none)
+std::string Table::getcelltip(std::string v)
+{
+  QTableWidget *w=(QTableWidget*) widget;
+  QStringList opt=qsplit(v);
+  int r=0, c=0;
+  if (opt.size()!=2 || !jint(opt.at(0),r) || !jint(opt.at(1),c)) {
+    error("get celltip must specify row and column: " + v);
+    return "";
+  }
+  if (!(r>=0 && r<rws && c>=0 && c<cls)) {
+    error("get celltip cell index out of bounds: " + v);
+    return "";
+  }
+  QTableWidgetItem *m=w->item(r,c);
+  return m ? q2s(m->toolTip()) : std::string();
 }
 
 // ---------------------------------------------------------------------
@@ -1600,15 +1641,21 @@ void Table::on_sectionResized(int c, int oldw, int neww)
 void Table::on_sectionClicked(int c)
 {
   if (hdrmode==0) return;
-  // Qt flips the indicator around this signal; read it once the click has settled
+  // The indicator is maintained here, not left to Qt (which only flips it when sorting is enabled on the view):
+  // clicking the current sort column toggles its order, clicking another column starts ascending. The state is kept in
+  // sortcol/sortorder, so it is the same whatever Qt does internally, and `get sortindicator` agrees with the event.
   QPointer<Table> self(this);
   QTimer::singleShot(0,this,[self,c]() {
     if (self.isNull()) return;
     QTableWidget *t=(QTableWidget*) self->widget;
     QHeaderView *h=t->horizontalHeader();
+    bool desc = (self->sortcol==c) ? !self->sortorder : false;
     self->sortcol=c;
-    self->sortorder=(h->sortIndicatorOrder()==Qt::DescendingOrder);
-    if (self->hdrmode==2) t->sortItems(c,h->sortIndicatorOrder());
+    self->sortorder=desc;
+    Qt::SortOrder so = desc ? Qt::DescendingOrder : Qt::AscendingOrder;
+    h->setSortIndicator(c,so);
+    h->setSortIndicatorShown(true);
+    if (self->hdrmode==2) t->sortItems(c,so);
     self->emithdr("hdrclick",c);
   });
 }

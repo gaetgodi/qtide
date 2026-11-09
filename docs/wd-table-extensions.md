@@ -23,6 +23,7 @@ caller may treat as "no capabilities"):
 table.colsizing table.colminwidth table.colwidth.get table.colresize.event
 table.headerclick table.hdrclick.event table.sortindicator
 table.celltip table.tooltips table.hover.event table.viewwidth.get
+table.sortindicator.auto table.celltip.get
 ```
 
 ## Column sizing
@@ -87,6 +88,19 @@ Variable `<id>_cell` = `<row> <col>`. Handler: `<id>_hover`. `set <id> hover 0` 
 Every setting and event above lives in the `Table` instance (no static or shared state); `<id>` selects the table and
 events carry the originating table's own variables. Two tables on one form (or in two forms) have independent sizing,
 indicators, hover state and events.
+
+## Corrections made after the first GUI test pass
+
+| Id | Original behaviour | Now |
+|---|---|---|
+| D1 | `headerclick event`/`native`: the indicator was never shown by a user click, and `get sortindicator` stayed `-1 0` although the `hdrclick` event reported `_sortind`. | A click toggles the order of the current sort column (or starts ascending on a new one), shows the indicator and then raises `hdrclick`; `get sortindicator` agrees with `_sortind`. `set sortindicator` still overrides. Capability `table.sortindicator.auto`. |
+| D3 | `set colminwidth abc` and `set sortindicator abc` were silently read as 0. | Rejected with the usual `must specify` error; J negatives (`_1`) are still accepted. `set colwidth` (stock) is unchanged. |
+| D4 | `set headerclick off` hid the sort arrow. | Arrow visibility follows the sort state, not clickability: a disabled header keeps showing the current sort. |
+
+`get <id> celltip <row> <col>` returns a cell's tooltip text (capability `table.celltip.get`).
+
+(The numbering skips D2: a defect in the stock `qchildxywh` command, which is not a table command, is documented and
+committed separately in `docs/wd-qchildxywh-origin.md`.)
 
 ## Notes and limits
 
