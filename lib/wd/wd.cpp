@@ -36,6 +36,7 @@
 #include "menus.h"
 #include "pane.h"
 #include "tabs.h"
+#include "table.h"
 #include "wd.h"
 #ifdef Q_OS_ANDROID
 #include "../base/androidextras.h"
@@ -1035,7 +1036,7 @@ void wdqueries(std::string s)
 {
   std::string p=cmd.getparms();
 
-  if (p.size() && (s=="qd" || s=="qverbose" ||s=="qopenglmod" || s=="qscreen" || s=="qwd" || s=="qosver" || s=="qprinters" || s=="qpx" || s=="qhwndp" || s=="qhwndx" || s=="qform")) {
+  if (p.size() && (s=="qd" || s=="qverbose" ||s=="qopenglmod" || s=="qscreen" || s=="qwd" || s=="qwdcaps" || s=="qosver" || s=="qprinters" || s=="qpx" || s=="qhwndp" || s=="qhwndx" || s=="qform")) {
     error("extra parameters: " + p);
     return;
   }
@@ -1119,6 +1120,10 @@ void wdqueries(std::string s)
     return;
   } else if (s=="qwd") {
     result="jqt";
+    return;
+  } else if (s=="qwdcaps") {
+    // space separated capability tokens of this wd implementation (see docs/wd-table-extensions.md)
+    result=Table::capabilities();
     return;
   } else if (s=="qosver") {
 #ifdef QT57
