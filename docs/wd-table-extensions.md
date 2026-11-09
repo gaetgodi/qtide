@@ -23,8 +23,11 @@ caller may treat as "no capabilities"):
 table.colsizing table.colminwidth table.colwidth.get table.colresize.event
 table.headerclick table.hdrclick.event table.sortindicator
 table.celltip table.tooltips table.hover.event table.viewwidth.get
-table.sortindicator.auto table.celltip.get
+table.sortindicator.auto table.celltip.get wd.childxywh.origin
 ```
+
+`wd.childxywh.origin` is not a table feature: it marks a build whose `qchildxywh` returns true positions
+(see `wd-qchildxywh-origin.md`).
 
 ## Column sizing
 

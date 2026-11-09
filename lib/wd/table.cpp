@@ -1351,7 +1351,7 @@ std::string Table::capabilities()
   return "table.colsizing table.colminwidth table.colwidth.get table.colresize.event "
          "table.headerclick table.hdrclick.event table.sortindicator "
          "table.celltip table.tooltips table.hover.event table.viewwidth.get "
-         "table.sortindicator.auto table.celltip.get";
+         "table.sortindicator.auto table.celltip.get wd.childxywh.origin";
 }
 
 // ---------------------------------------------------------------------
